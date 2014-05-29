@@ -1,17 +1,22 @@
 require 'scraperwiki'
-# Based on template by pezholio see blog at http://bit.ly/15eqyPz
 require 'nokogiri'
 require 'mechanize'
 require 'open-uri'
 require 'date'
 require 'json'
 require 'yaml'
-
-url = "http://ratings.food.gov.uk/OpenDataFiles/FHRS870en-GB.xml"
+# Based on template by pezholio see blog at http://bit.ly/15eqyPz
 # See blog for more details of how to find the url for a specific council 
 # Both date lines below modified from template by adding rescue nil to cover situation when date is blank
+# Moved to morph.io 29-May-2014
+# Modified to skip records for Exempt premises and those Awaiting Inspection
 
-doc = Nokogiri::XML open(url)
+id = "870"
+
+# Milton Keynes 870
+# Walsall 433
+
+doc = Nokogiri::XML open("http://ratings.food.gov.uk/OpenDataFiles/FHRS#{id}en-GB.xml")
 
 inspections = []
 
@@ -23,6 +28,13 @@ doc.search('EstablishmentDetail').each do |i|
 end
 
 inspections.each do |i|
+   if i["RatingValue"] == "Exempt"
+      puts "skipping: Exempt id: " + i["FHRSID"] + "Name: " + i["BusinessName"]
+      # skip
+   elsif i["RatingValue"] == "AwaitingInspection"
+      puts "skipping: Awaiting Inspection id: " + i["FHRSID"] + "Name: " + i["BusinessName"]
+      # skip
+   else   
     details = {}
     details[:id] = i["FHRSID"]
     details[:councilid] = i["LocalAuthorityBusinessID"]
@@ -34,9 +46,10 @@ inspections.each do |i|
     details[:postcode] = i["PostCode"]
     details[:rating] = i["RatingValue"]
     details[:type] = i["BusinessType"]
-    details[:rss_date] = details[:date].strftime("%A, %d %b %Y %H:%M:%S %Z") rescue nil
+    details[:rss_date] = details[:date].strftime("%A, %d %b %Y %H:%M:%S %Z")
     details[:lat] = i["lat"]
     details[:lng] = i["lng"]
-    
-    ScraperWiki.save(["id"], details)
+     ScraperWiki.save([:id], details)
+   end
 end
+
