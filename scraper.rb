@@ -10,6 +10,7 @@ require 'yaml'
 # Both date lines below modified from template by adding rescue nil to cover situation when date is blank
 # Moved to morph.io 29-May-2014
 # Modified to skip records for Exempt premises and those Awaiting Inspection
+# Further modified to skip records which have Exempt or AwaitingInspection in the ratings field
 
 id = "870"
 
@@ -19,6 +20,7 @@ id = "870"
 doc = Nokogiri::XML open("http://ratings.food.gov.uk/OpenDataFiles/FHRS#{id}en-GB.xml")
 
 inspections = []
+puts "Pre-processing address geo-coding"
 
 doc.search('EstablishmentDetail').each do |i|
    details = i.children.inject({}){|hsh,el| hsh[el.name] = el.inner_text;hsh}
@@ -28,13 +30,13 @@ doc.search('EstablishmentDetail').each do |i|
 end
 
 inspections.each do |i|
-   if i["RatingValue"] == "Exempt"
-      puts "skipping: Exempt id: " + i["FHRSID"] + "Name: " + i["BusinessName"]
+  # if i["RatingValue"] == "Exempt" 
+    if i["RatingValue"] == "0" || i["RatingValue"] == "1"  || i["RatingValue"] == "2"  || i["RatingValue"] == "3"  || i["RatingValue"] == "4"  || i["RatingValue"] == "5"
       # skip
-   elsif i["RatingValue"] == "AwaitingInspection"
-      puts "skipping: Awaiting Inspection id: " + i["FHRSID"] + "Name: " + i["BusinessName"]
+   #elsif i["RatingValue"] == "AwaitingInspection"
+    #  puts "skipping: Awaiting Inspection id: " + i["FHRSID"] + "Name: " + i["BusinessName"]
       # skip
-   else   
+   #else   
     details = {}
     details[:id] = i["FHRSID"]
     details[:councilid] = i["LocalAuthorityBusinessID"]
@@ -50,6 +52,9 @@ inspections.each do |i|
     details[:lat] = i["lat"]
     details[:lng] = i["lng"]
      ScraperWiki.save([:id], details)
+   else
+     puts "skipping record, id: " + i["FHRSID"] + " Name: " + i["BusinessName"] + " Rating: " + i["RatingValue"]
+        
    end
 end
 
